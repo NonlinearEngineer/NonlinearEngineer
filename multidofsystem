@@ -1,0 +1,312 @@
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.linalg as la
+from scipy import linalg
+from numpy.linalg import eig
+print("Bu program kütleleri yapı kat seviyesine topaklayarak yapıyı bir çubuk olarak idealize etmektedir. Programa vereceğiniz değerleri lütfen en üst kattan başlayarak veriniz.")
+Node_number = int(input("Kütlenin Topaklandığı Düğüm Noktası Sayısını Giriniz"))
+Number_of_freedoom_each_node = int(input("Düğüm Noktalarındaki Serbestlik Derecesi Sayısını Giriniz"))
+Mass_list = np.zeros(Node_number**2) #Düğüm noktası sayısının karesi kadar bir 0 listesi hazırlandı
+Zero_matrix = Mass_list.reshape ([Node_number, Node_number]) # Hazırlanan liste düğüm noktası sayısı kadar sütun ve kolondan oluşacak şekilde düzenlendi
+Mass_matrix = Zero_matrix
+##Kütle Matrisine Düğüm Noktası Sayısı Kadar Topaklanmış Kütle Dahil Etme Bölümü##
+i = 0
+degisken_kutusu = range(Node_number)
+for i in degisken_kutusu:
+    l = i+1
+    Kat = Node_number - i
+    Hazir_yazi = (Kat,"inci kat kütlesini giriniz (kN.sec2/metre)")
+    Mass_matrix[i][i]=input(Hazir_yazi )
+    i += 1
+print("Yapı Kütle Matrisi (kN.sec2/metre)\n", Mass_matrix)
+
+##Kütlelerin Yerden Yüksekliği
+Height_list = np.zeros(Node_number)
+i = 0
+for i in range(Node_number):
+    l = i + 1
+    Hazır_yazi = (l,"inci kütlenin yerden yüksekliğini giriniz (metre)")
+    Height_list[i] = int(input(Hazır_yazi))
+    i +=1
+print(Height_list)
+
+
+
+##Rijitlik Matrisi Oluşturma##
+Zero_stiffness_list = np.zeros(Node_number**2) #Düğüm noktası sayısının karesi kadar bir 0 listesi hazırlandı
+Zero_matrix_stiffness = Zero_stiffness_list.reshape ([Node_number, Node_number]) # Hazırlanan liste düğüm noktası sayısı kadar sütun ve kolondan oluşacak şekilde düzenlendi
+Stiffness_matrix = Zero_matrix_stiffness
+##Rijitlik Matrisine Düğüm Noktası Sayısı Kadar Topaklanmış Kütle Dahil Etme Bölümü##
+j = 0
+Stiffness_list =[]
+degisken_kutusu1 = range(Node_number)
+for j in degisken_kutusu1:
+    Kat = Node_number - j
+    l = j+1
+    y = j-1
+    Hazir_yazi = (Kat,"inci eşdeğer kat rijitliğini giriniz (kN/metre)")
+    Iterasyon = int(input(Hazir_yazi))
+    Stiffness_list.append(Iterasyon) # Her rijitlik değeri bir listeye sırasıyla eklendi.
+    if j == 0:
+        Stiffness_matrix[0][1] = -Stiffness_list[j]
+    elif (Node_number-1) > j > 0:
+        Stiffness_matrix[j][j - 1] = -Stiffness_list[j - 1]
+        Stiffness_matrix[j][j + 1] = -Stiffness_list[j]
+    elif l == Node_number:
+        Stiffness_matrix[(Node_number - 1)][(Node_number - 2)] = -Stiffness_list[j - 1]
+    j += 1
+# Matris Köşegen İşlemleri
+for j in degisken_kutusu1:
+    l = j + 1
+    if j == 0:
+        Stiffness_matrix[j][j] = Stiffness_list[j]
+    elif (Node_number-1) > j > 0:
+        Stiffness_matrix[j][j] = Stiffness_list[j - 1]+Stiffness_list[j]
+    elif l == Node_number:
+        Stiffness_matrix[j][j] = Stiffness_list[j - 1] + Stiffness_list[j]
+    j += 1
+print("Yapı Rijitlik Matrisi (kN/metre)\n", Stiffness_matrix)
+
+
+### BURAYA KADAR RİJİTLİK VE KÜTLE MATRİSLERİ OLUŞTURULDU
+
+
+
+#ÖZDEĞER PROBLEMİNİN ÇÖZÜMÜNDE DOĞRUDAN "numpy.linalg" KÜTÜPHANESİ KULLANILMIŞTIR.
+print("DENEME")
+Mass_matrix_second = Mass_matrix * 1 #Kütle matrisinin bozulmaması amacıyla başka bir ifadeye atama yapıldı.
+#ANIL K. CHOPRA SAYFA 440 BÖLÜM 10.15'E GÖRE PERİYOT VE MOD ŞEKİLLERİ HESAPLANMIŞTIR
+degisken_kutusu2 = range(Node_number)
+fi=0
+for fi in degisken_kutusu2:
+    Mass_matrix_second[fi][fi] = (1/(math.sqrt(Mass_matrix_second[fi][fi])))
+    fi += 1
+TT = np.dot(Mass_matrix_second, Stiffness_matrix)
+A = np.dot(TT, Mass_matrix_second)
+results2 = la.eig(A)
+eigvals2, eigvecs2 = la.eig(A)
+eigvals2 = eigvals2.real
+Periods2 = []
+for j in degisken_kutusu1:
+    Periods2.append((2*math.pi)/(math.sqrt((eigvals2[j]))))
+    j += 1
+Mode_shape_Tr = np.dot(Mass_matrix_second, eigvecs2)
+Mode_shape = Mode_shape_Tr.transpose()
+u=0
+New_list = np.zeros(Node_number**2)
+New_list = New_list.reshape ([Node_number, Node_number])
+for u in range(Node_number):     
+    liste = [0]
+    degisken = u+1
+    po = 0
+    for po in range(Node_number):
+        Node_Number_Real = range(0, Node_number+1)
+        Mod_shape_visualization_main5 = Mode_shape[u] #Mod şekli matrisinin içinden bir fonksiyon yardımıyla sırasıyla matirsin satırları çağrıldı.
+        New_list[u][po] = (Mod_shape_visualization_main5[::-1])[po]
+        po +=1
+    u +=1
+Mode_shape = New_list #Üst tarafta bulunan iki iç içe for döngüsü mod şekli matrisini düzenlemek için yapıldı. Matris satırları 1. kattan başlıyordu artık 4. kattan başlıyor.
+print("Yapı Doğal Titreşim Periyotları (sn)\n", Periods2)
+print("Mod Şekli Matrisi (Birimsiz)\n", Mode_shape)
+
+## MOD ŞEKLİ MATRİSİNİ SIRALAMA 
+"""Bu bölüm üzerinde çalışması yapılması gerekiyor, şu anda mod şekilleri sırasız geliyor kütle katılım oranı listesinde en büyük kütle katılıma sahip eleman kaçıncı eleman ise özdeğer
+matrisinde de matrisin o satırı birinci titreşim frekansının mod şeklidir. Bunun tespiti ve mod şekli matrisini tekrar sıraya sokulması akabinde eğer 1. mod şekli değerlerinin negatif 
+olmaması için bir algoritma yazılması gerekmektedir."""
+
+"""## MOD SHAPE NORMALIZATION
+u=0
+New_list12 = np.zeros(Node_number**2)
+New_list12 = New_list12.reshape ([Node_number, Node_number])
+for u in range(Node_number):
+    po = 0
+    for po in range(Node_number):
+        Mod_shape_normalization_factor = 1/(Mode_shape[u][Node_number-1])
+        New_list12 [u][po] = Mod_shape_normalization_factor * Mode_shape[u][po]
+        po +=1   
+    u +=1
+Normalized_Modal_Shapes3 = New_list12
+print("Normalized_Modal_Shapes \n", Normalized_Modal_Shapes3)"""
+
+
+## GÖRÜNTÜLEME
+Kat_sayısı = np.zeros(Node_number+1)
+u=0
+for u in range(Node_number):     
+    liste = [0]
+    degisken = u+1
+    Node_Number_Real = range(0, Node_number+1)
+    Mod_shape_visualization_main1 = Mode_shape[u] #Mod şekli matrisinin içinden bir fonksiyon yardımıyla sırasıyla matirsin satırları çağrıldı.
+    Mod_shape_visualization_main = Mod_shape_visualization_main1
+    liste1 = np.append(liste, Mod_shape_visualization_main) #Bu liste mod şekillerinin grafikte temel seviyesinde 0 deplasman göstermesi amacıyla yapılmıştır.
+    plt.figure(figsize=(6,12))
+    plt.figure(degisken)
+    plt.subplot(degisken,1,degisken)
+    plt.plot(Kat_sayısı, Node_Number_Real, 'ro')
+    plt.plot(Kat_sayısı, Node_Number_Real, color="green") 
+    plt.plot(liste1, Node_Number_Real, 'ro')
+    plt.plot(liste1, Node_Number_Real, color="blue") 
+    plt.title("Mod Şekli")
+    plt.xlabel("Modal Yerdeğiştirme")
+    plt.ylabel("Kat Seviyeleri")
+    u +=1
+
+
+
+### Modal Kütle
+Modal_mass_55 = np.zeros(Node_number**2)
+Modal_mass_55 = Modal_mass_55.reshape(Node_number,Node_number)
+Modal_mass_list_alternatif = np.zeros(Node_number)
+u=0
+New_list45 = np.zeros(Node_number)
+for u in range(Node_number):
+    Mode_shape_singular =  Mode_shape[u]    
+    Mass = Mass_matrix[u][u]
+    po =0
+    for po in range(Node_number):
+        Modal_mass_55[u][po] = Mass * (Mode_shape_singular[po]) * (Mode_shape_singular[po])
+        po +=1
+u=0
+for u in range(Node_number):    
+    Modal_mass_list_alternatif[u] = sum(Modal_mass_55[u])
+print("Modal Kütleler \n", Modal_mass_list_alternatif)
+
+
+
+
+
+##GÖRÜNTÜLEME2
+Kat_sayısı = np.zeros(Node_number+1)
+u=0
+for u in range(Node_number):     
+    liste = [0]
+    degisken = u+1
+    Node_Number_Real = range(0, Node_number+1)
+    Mod_shape_visualization_main1 = Mode_shape[u] #Mod şekli matrisinin içinden bir fonksiyon yardımıyla sırasıyla matirsin satırları çağrıldı.
+    Mod_shape_visualization_main = Mod_shape_visualization_main1
+    liste1 = np.append(liste, Mod_shape_visualization_main) #Bu liste mod şekillerinin grafikte temel seviyesinde 0 deplasman göstermesi amacıyla yapılmıştır.
+    plt.figure(figsize=(6,10))
+    plt.figure(degisken)
+    plt.subplot(degisken,1,degisken)
+    plt.plot(Kat_sayısı, Node_Number_Real, 'ro')
+    plt.plot(Kat_sayısı, Node_Number_Real, color="green") 
+    plt.plot(liste1, Node_Number_Real, 'ro')
+    plt.plot(liste1, Node_Number_Real, color="purple") 
+    plt.title("Mod Şekli")
+    plt.xlabel("Modal Yerdeğiştirme")
+    plt.ylabel("Kat Seviyeleri")
+    u +=1
+    
+    
+"""### Modal Rijitlik
+print("Modal Stiffness")
+Modal_stiffness_list = np.zeros(Node_number)
+u=0
+New_list5 = np.zeros(Node_number**2)
+New_list5 = New_list5.reshape ([Node_number, Node_number])
+for u in range(Node_number):
+    Mode_shape_singular =  Normalized_Modal_Shapes3[u]    
+    Mode_shape_transpose = Mode_shape_singular.transpose()
+    Modal_stiffness_level = np.dot(Mode_shape_transpose, Stiffness_matrix)
+    Modal_stiffness = np.dot(Modal_stiffness_level, Mode_shape_singular)
+    Modal_stiffness_list[u] = (Modal_stiffness)      
+    u +=1
+print("Modal Rijitlik \n", Modal_stiffness_list)"""
+    
+### Modal Sönüm
+#SÖNÜM MATRİSİ OLUŞTURMALISIN
+
+####
+
+
+### Modal Deprem Yer Hareketi Katsayısı
+Modal_eq_groundmotion_factor_list = np.zeros(Node_number)
+identity_matrix = np.ones((Node_number,1), dtype = float)
+u=0
+New_list5 = np.zeros(Node_number**2)
+New_list5 = New_list5.reshape ([Node_number, Node_number])
+for u in range(Node_number):
+    Mode_shape_singular =  Mode_shape[u]    
+    Mode_shape_transpose = Mode_shape_singular.transpose()
+    Modal_eq_groundmotion_factor_level = np.dot(Mode_shape_transpose, Mass_matrix)
+    Modal_eq_groundmotion_factor = np.dot(Modal_eq_groundmotion_factor_level, identity_matrix)
+    Modal_eq_groundmotion_factor_list[u] = (Modal_eq_groundmotion_factor)      
+    u +=1
+print("Modal Deprem Yer Hareketi Katsayısı \n", Modal_eq_groundmotion_factor_list)
+
+### Yük Katılım Katsayısı
+Load_participation_factor_list = np.zeros(Node_number)
+u=0
+for u in range(Node_number):
+    Load_participation_factor = Modal_eq_groundmotion_factor_list[u] /  Modal_mass_list_alternatif[u]
+    Load_participation_factor_list[u] = Load_participation_factor
+    u +=1
+print("Modal Yük Katılım Katsayısı \n", Load_participation_factor_list)
+
+### Katkı sn Vektörü
+sn = np.zeros(Node_number**2)
+sn = sn.reshape([Node_number, Node_number]) 
+for u in range(Node_number):
+    sn_level = np.dot(Mass_matrix, (Mode_shape[u]))
+    po = 0
+    for po in range(Node_number):
+        sn[u][po] = Load_participation_factor_list[u] * sn_level[po]
+        po +=1
+    u +=1
+print("Katkı Vektörü (sn) ", sn)
+    
+### Etkin Kütle
+Total_mass_list = np.zeros(Node_number)
+u=0  
+Effective_mass_list = np.zeros(Node_number)
+for u in range(Node_number):
+    Effective_mass_list[u] = Modal_eq_groundmotion_factor_list[u] * Load_participation_factor_list[u]
+    Total_mass_list[u] = Effective_mass_list[u]
+    u +=1
+Total_mass = sum(Total_mass_list)
+Mass_participation_ratio_list = np.zeros(Node_number)
+u=0
+for u in range(Node_number):
+    Mass_participation_ratio_list[u] = Effective_mass_list[u] / Total_mass
+    u +=1
+print("Etkin Kütleler (kN.sec2/metre) \n", Effective_mass_list)
+print("Modların Kütle Katılım Oranları \n",  Mass_participation_ratio_list)
+
+
+###LnQ
+LnQ_matrix = np.zeros(Node_number**2)
+LnQ_matrix = LnQ_matrix.reshape(Node_number, Node_number)
+LnQ_list = np.zeros(Node_number)
+u=0
+for u in range(Node_number):
+    for po in range(Node_number):
+        LnQ = Height_list[po] * Mass_matrix[po][po] * Mode_shape[u][po]
+        LnQ_matrix[u][po] = LnQ
+        po +=1
+    u +=1
+u = 0
+for u in range(Node_number):
+    LnQ_list[u] = sum(LnQ_matrix[u])
+    u +=1
+print("LnQ \n", LnQ_list)
+
+##Etkin Yükseklik
+hn_list = np.zeros(Node_number)
+u=0
+for u in range(Node_number):
+    hn_list[u] = LnQ_list[u] / Modal_eq_groundmotion_factor_list[u]
+    u +=1
+print("Etkin Yükseklik \n", hn_list)
+
+##Static Base Shear
+Static_Base_Shear_list =Effective_mass_list
+print("Statik Taban Kesme Kuvveti (kN.sec2/metre) \n", Static_Base_Shear_list)
+##Static Overturning Moment
+Static_Overturning_Moment_list = np.zeros(Node_number)
+u = 0
+for u in range(Node_number):
+    Static_Overturning_Moment_list[u] =  Static_Base_Shear_list[u] * hn_list[u]
+    u +=1
+print("Statik Devrilme Momenti (kN.sec2) \n",Static_Overturning_Moment_list)
+print("----------------------İnş. Yük. Müh. Ozan Dursun Erdem sunar.-------------------------------")
